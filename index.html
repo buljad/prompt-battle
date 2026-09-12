@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Промпт-Батл // AI Art Reconstructor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <h1><span class="h1-icon">🎨</span> Промпт-Батл</h1>
+      <div class="top-btn-group">
+        <button id="btn-open-lb" class="icon-btn" title="Лидерборд">🏆</button>
+        <button id="btn-help"    class="icon-btn" title="Правила">❓</button>
+      </div>
+    </div>
+
+    <!-- ЭКРАН 1: СТАРТ -->
+    <div id="screen-start" class="screen active">
+      <p class="subtitle">Опиши шедевр живописи своими словами так, чтобы нейросеть повторила его за 2 минуты!</p>
+
+      <div class="auth-card">
+        <input id="player-nick" class="input-field" type="text" maxlength="30"
+               placeholder="Введи никнейм (к примеру, ник в тг)" autocomplete="off" spellcheck="false" />
+        <div id="user-tip" class="user-status-tip">Укажи ник или @ник_в_тг для участия в турнире</div>
+      </div>
+
+      <button id="btn-start" class="btn primary large-btn">▶ Начать батл</button>
+    </div>
+
+    <!-- ЭКРАН 2: ИГРОВАЯ АРЕНА (ЕДИНЫЙ РАУНД 120 СЕК) -->
+    <div id="screen-game" class="screen">
+      <div class="game-hud">
+        <div class="hud-item">
+          <span class="hud-label">Осталось времени</span>
+          <span id="hud-timer" class="hud-val gold">2:00</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Картина</span>
+          <span id="hud-art-title" class="hud-val cyan">Шедевр</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Эпоха / Стиль</span>
+          <span id="hud-art-epoch" class="hud-val accent">Классика</span>
+        </div>
+      </div>
+
+      <div class="battle-layout">
+        <!-- Крупный целевой шедевр -->
+        <div class="target-card">
+          <div class="card-tag">🎯 Образец для повторения</div>
+          <div class="target-img-wrap">
+            <img id="target-img" src="" alt="Цель" />
+          </div>
+        </div>
+
+        <!-- Поле промпта -->
+        <div class="prompt-card">
+          <div class="card-tag">✍️ Твой промпт для нейросети</div>
+          <textarea id="prompt-input" class="prompt-textarea" rows="7"
+                    placeholder="Опиши композицию, главного персонажа, позу, одежду, цветовую гамму, свет и задний план..."></textarea>
+          
+          <div id="stopword-alert" class="stopword-warning hidden"></div>
+
+          <button id="btn-submit-prompt" class="btn primary large-btn submit-btn">
+            🚀 Сгенерировать шедевр
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ЭКРАН 3: ГЕНЕРАЦИЯ (СПИННЕР) -->
+    <div id="screen-loading" class="screen">
+      <div class="spinner-box">
+        <div class="spinner"></div>
+        <h2>Нейросеть генерирует изображение...</h2>
+        <p class="subtitle">Инференс диффузионной модели: ~3–6 секунд</p>
+      </div>
+    </div>
+
+    <!-- ЭКРАН 4: РЕЗУЛЬТАТЫ И АНАЛИТИКА -->
+    <div id="screen-result" class="screen">
+      <div class="badge" id="result-badge">🏁 Раунд завершен</div>
+      <p class="subtitle">Пилот: <span id="res-pilot-name" style="color:var(--gold); font-weight:700;"></span></p>
+
+      <div class="score-banner">
+        <div class="score-label">Итоговое сходство с оригиналом:</div>
+        <div id="res-score-pct" class="score-value">0%</div>
+        <div id="res-verdict-text" class="score-verdict">Оценка визуальных совпадений...</div>
+      </div>
+
+      <!-- Детальные шкалы оценки -->
+      <div class="breakdown-grid">
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>🎨 Цветовая палитра</span>
+            <b id="metric-color-val">0%</b>
+          </div>
+          <div class="metric-bar-bg"><div id="metric-color-bar" class="metric-bar-fill"></div></div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>📐 Композиция и светотень</span>
+            <b id="metric-struct-val">0%</b>
+          </div>
+          <div class="metric-bar-bg"><div id="metric-struct-bar" class="metric-bar-fill"></div></div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>🖌️ Фактура и контуры</span>
+            <b id="metric-edge-val">0%</b>
+          </div>
+          <div class="metric-bar-bg"><div id="metric-edge-bar" class="metric-bar-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Детектив-режим: угаданные маркеры -->
+      <div class="detective-card">
+        <div class="detective-title">🔍 Ключевые детали оригинала:</div>
+        <div id="detective-chips" class="detective-chips-wrap"></div>
+      </div>
+
+      <div class="comparison-grid">
+        <div class="comp-col">
+          <div class="comp-title">Оригинал шедевра</div>
+          <img id="comp-target-img" class="comp-img" src="" alt="Оригинал" />
+        </div>
+        <div class="comp-col">
+          <div class="comp-title">Нейросеть (Твой результат)</div>
+          <img id="comp-gen-img" class="comp-img" src="" alt="Генерация" />
+        </div>
+      </div>
+
+      <div class="user-prompt-summary">
+        <b>Использованный промпт:</b>
+        <p id="res-prompt-text">—</p>
+      </div>
+
+      <div class="result-actions">
+        <button id="btn-again"   class="btn primary large-btn">🎨 Еще раунд</button>
+        <button id="btn-show-lb" class="btn secondary">🏆 Таблица лидеров</button>
+      </div>
+    </div>
+
+    <!-- ЭКРАН 5: ЛИДЕРБОРД -->
+    <div id="screen-leaderboard" class="screen">
+      <p class="subtitle">🏆 Рейтинг точности промпт-инженеров</p>
+      <div id="lb-table-wrap">
+        <table id="lb-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Никнейм</th>
+              <th>Сходство</th>
+              <th>Картина</th>
+              <th>Дата</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+        <p id="lb-empty" class="lb-empty hidden">Пока нет записей — пройди тест первым!</p>
+      </div>
+      <div class="result-actions">
+        <button id="btn-lb-back" class="btn primary">← Назад</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: ПРАВИЛА -->
+  <div id="modal-help" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>❓ Правила Промпт-Батла</h2>
+      <div class="help-section">
+        <h3>🎯 Цель игры</h3>
+        <p>За <b>2 минуты</b> составить текстовое описание шедевра так, чтобы сгенерированная картинка оказалась максимально похожей на оригинал.</p>
+      </div>
+      <div class="help-section">
+        <h3>🚫 Запрещенные слова</h3>
+        <p>Нельзя использовать <b>имя художника</b> или <b>название картины</b>. Описывай только визуальные детали: персонажей, фон, цветовую гамму, ракурс и свет.</p>
+      </div>
+      <div class="help-section">
+        <h3>🏆 Оценка сходства</h3>
+        <p>Система оценивает попадание в скрытые маркеры картины, распределение цвета в 16 квадрантах и геометрию светотени.</p>
+      </div>
+      <button id="btn-help-close" class="btn primary large-btn">Понятно!</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
