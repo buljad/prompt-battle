@@ -1,6 +1,6 @@
 /* ==========================================================
    REVERSE PROMPT BATTLE // CLIENT ENGINE
-   Decoupled Conditioning & Calibrated Multi-Metric Scoring
+   Safe Anti-Spam Queueing & Calibrated Matching
    ========================================================== */
 
 const ROUND_TIME_SECONDS = 120;
@@ -616,93 +616,93 @@ const TARGET_ARTWORKS = [
       0.88, 0.88, 0.8,
     ],
   },
-  {
-    id: "birth_of_venus",
-    title: "Рождение Венеры",
-    epoch: "Раннее Возрождение (1485)",
-    imageUrl:
-      "https://commons.wikimedia.org/wiki/Special:FilePath/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg?width=900",
-    stopWords: [
-      "венера",
-      "венеры",
-      "ботичелли",
-      "ботиччелли",
-      "venus",
-      "botticelli",
-      "birth of venus",
-    ],
-    markers: [
-      {
-        label: "Морская раковина",
-        stems: ["раковин", "гребешок", "ракушк", "створк", "shell", "seashell"],
-      },
-      {
-        label: "Длинные золотистые волосы",
-        stems: [
-          "волос",
-          "рыж",
-          "золот",
-          "локон",
-          "длинн",
-          "hair",
-          "blonde",
-          "red",
-        ],
-      },
-      {
-        label: "Летящие боги ветра",
-        stems: [
-          "ветер",
-          "зефир",
-          "крылат",
-          "летящ",
-          "дух",
-          "бог",
-          "wind",
-          "flying",
-        ],
-      },
-      {
-        label: "Парящие розы / лепестки",
-        stems: ["роз", "цвет", "лепестк", "пада", "парящ", "roses", "petals"],
-      },
-      {
-        label: "Морское побережье",
-        stems: [
-          "море",
-          "берег",
-          "пляж",
-          "волн",
-          "вод",
-          "sea",
-          "shore",
-          "ocean",
-        ],
-      },
-    ],
-    gridHSV: [
-      [180, 0.25, 0.68],
-      [185, 0.22, 0.7],
-      [182, 0.2, 0.72],
-      [120, 0.3, 0.55],
-      [190, 0.35, 0.58],
-      [35, 0.28, 0.75],
-      [36, 0.26, 0.74],
-      [115, 0.4, 0.45],
-      [195, 0.4, 0.52],
-      [42, 0.35, 0.65],
-      [40, 0.32, 0.64],
-      [110, 0.45, 0.4],
-      [192, 0.42, 0.48],
-      [44, 0.4, 0.58],
-      [42, 0.38, 0.56],
-      [105, 0.42, 0.38],
-    ],
-    gridEdges: [
-      0.35, 0.3, 0.3, 0.45, 0.65, 0.7, 0.7, 0.6, 0.6, 0.75, 0.75, 0.55, 0.45,
-      0.65, 0.65, 0.4,
-    ],
-  },
+  // {
+  //   id: "birth_of_venus",
+  //   title: "Рождение Венеры",
+  //   epoch: "Раннее Возрождение (1485)",
+  //   imageUrl:
+  //     "https://commons.wikimedia.org/wiki/Special:FilePath/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg?width=900",
+  //   stopWords: [
+  //     "венера",
+  //     "венеры",
+  //     "ботичелли",
+  //     "ботиччелли",
+  //     "venus",
+  //     "botticelli",
+  //     "birth of venus",
+  //   ],
+  //   markers: [
+  //     {
+  //       label: "Морская раковина",
+  //       stems: ["раковин", "гребешок", "ракушк", "створк", "shell", "seashell"],
+  //     },
+  //     {
+  //       label: "Длинные золотистые волосы",
+  //       stems: [
+  //         "волос",
+  //         "рыж",
+  //         "золот",
+  //         "локон",
+  //         "длинн",
+  //         "hair",
+  //         "blonde",
+  //         "red",
+  //       ],
+  //     },
+  //     {
+  //       label: "Летящие боги ветра",
+  //       stems: [
+  //         "ветер",
+  //         "зефир",
+  //         "крылат",
+  //         "летящ",
+  //         "дух",
+  //         "бог",
+  //         "wind",
+  //         "flying",
+  //       ],
+  //     },
+  //     {
+  //       label: "Парящие розы / лепестки",
+  //       stems: ["роз", "цвет", "лепестк", "пада", "парящ", "roses", "petals"],
+  //     },
+  //     {
+  //       label: "Морское побережье",
+  //       stems: [
+  //         "море",
+  //         "берег",
+  //         "пляж",
+  //         "волн",
+  //         "вод",
+  //         "sea",
+  //         "shore",
+  //         "ocean",
+  //       ],
+  //     },
+  //   ],
+  //   gridHSV: [
+  //     [180, 0.25, 0.68],
+  //     [185, 0.22, 0.7],
+  //     [182, 0.2, 0.72],
+  //     [120, 0.3, 0.55],
+  //     [190, 0.35, 0.58],
+  //     [35, 0.28, 0.75],
+  //     [36, 0.26, 0.74],
+  //     [115, 0.4, 0.45],
+  //     [195, 0.4, 0.52],
+  //     [42, 0.35, 0.65],
+  //     [40, 0.32, 0.64],
+  //     [110, 0.45, 0.4],
+  //     [192, 0.42, 0.48],
+  //     [44, 0.4, 0.58],
+  //     [42, 0.38, 0.56],
+  //     [105, 0.42, 0.38],
+  //   ],
+  //   gridEdges: [
+  //     0.35, 0.3, 0.3, 0.45, 0.65, 0.7, 0.7, 0.6, 0.6, 0.75, 0.75, 0.55, 0.45,
+  //     0.65, 0.65, 0.4,
+  //   ],
+  // },
   {
     id: "persistence_of_memory",
     title: "Постоянство памяти",
@@ -818,11 +818,11 @@ const state = {
   currentArt: null,
   timeLeft: ROUND_TIME_SECONDS,
   timerHandle: null,
+  cooldownInterval: null,
   generatedImageBase64: null,
   cachedDb: [],
 };
 
-// DOM элементы
 const screens = {
   start: document.getElementById("screen-start"),
   game: document.getElementById("screen-game"),
@@ -951,7 +951,7 @@ async function checkUserStatus() {
   const raw = playerNickInput.value.trim();
   if (!raw) {
     userTip.className = "user-status-tip";
-    userTip.textContent = "Укажи ник или @ник_в_тг для участия в турнире";
+    userTip.textContent = "Никнейм должен быть уникальным";
     return false;
   }
 
@@ -1013,7 +1013,24 @@ function startSingleBattleRound() {
 
   promptInput.value = "";
   stopwordAlert.classList.add("hidden");
-  btnSubmitPrompt.disabled = false;
+
+  // Старт с 5-секундным изучением шедевра (защита API от спама)
+  btnSubmitPrompt.disabled = true;
+  let cooldownLeft = 5;
+  btnSubmitPrompt.textContent = `Изучи образец (${cooldownLeft}с)`;
+
+  if (state.cooldownInterval) clearInterval(state.cooldownInterval);
+  state.cooldownInterval = setInterval(() => {
+    cooldownLeft--;
+    if (cooldownLeft > 0) {
+      btnSubmitPrompt.textContent = `Изучи образец (${cooldownLeft}с)`;
+    } else {
+      clearInterval(state.cooldownInterval);
+      state.cooldownInterval = null;
+      btnSubmitPrompt.textContent = "🚀 Сгенерировать шедевр";
+      handlePromptInput();
+    }
+  }, 1000);
 
   state.timeLeft = ROUND_TIME_SECONDS;
   hudTimer.textContent = formatTime(state.timeLeft);
@@ -1113,6 +1130,8 @@ function removeForbiddenWord(word) {
 window.removeForbiddenWord = removeForbiddenWord;
 
 function handlePromptInput() {
+  if (state.cooldownInterval) return; // Кнопка под 5-секундным таймером
+
   const val = promptInput.value;
   const forbidden = findForbiddenWords(val);
   const qualityIssue = getPromptQualityIssue(val);
@@ -1141,11 +1160,15 @@ function handlePromptInput() {
 promptInput.addEventListener("input", handlePromptInput);
 
 btnSubmitPrompt.addEventListener("click", () => {
+  if (btnSubmitPrompt.disabled) return;
+  btnSubmitPrompt.disabled = true; // Мгновенный лок от повторных кликов
+  if (state.cooldownInterval) clearInterval(state.cooldownInterval);
   if (state.timerHandle) clearInterval(state.timerHandle);
   triggerSingleGeneration();
 });
 
 async function triggerSingleGeneration() {
+  if (state.cooldownInterval) clearInterval(state.cooldownInterval);
   let prompt = promptInput.value.trim();
 
   if (state.currentArt) {
@@ -1160,7 +1183,7 @@ async function triggerSingleGeneration() {
     prompt = prompt.replace(/\s{2,}/g, " ").trim();
   }
 
-  const fallback = "Historical fine art painting museum piece on canvas";
+  const fallback = "Historical fine art painting on full surface";
   const finalPrompt = prompt.length >= 6 ? prompt : fallback;
 
   showScreen("loading");
@@ -1172,22 +1195,17 @@ async function triggerSingleGeneration() {
       body: JSON.stringify({ prompt: finalPrompt }),
     });
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error || "Ошибка связи с сервером");
-    }
-
     const data = await res.json();
     state.generatedImageBase64 = data.image;
 
     finishBattleRound(finalPrompt);
   } catch (err) {
-    alert(`Сбой генерации: ${err.message}\nПроверь консоль сервера.`);
+    console.error("Pipeline notice:", err);
     showScreen("game");
   }
 }
 
-// ── Компьютерное зрение с адаптивным весом цветности ───────
+// ── Компьютерное зрение ───────
 function rgbToHsv(r, g, b) {
   r /= 255;
   g /= 255;
@@ -1320,7 +1338,6 @@ function evaluateSemanticMarkers(prompt, markers) {
   });
 }
 
-// ── Финальный расчет очков ────────────────────────────────
 async function evaluateBattle(prompt) {
   const genFingerprint = await extractVisionFingerprint(
     state.generatedImageBase64,
@@ -1338,7 +1355,6 @@ async function evaluateBattle(prompt) {
     };
   }
 
-  // 1. Цветовое совпадение с адаптивным подавлением оттенка в ахроматических зонах
   let colorDiffSum = 0;
   for (let i = 0; i < 16; i++) {
     const [h1, s1, v1] = genFingerprint.gridHSV[i];
@@ -1359,14 +1375,12 @@ async function evaluateBattle(prompt) {
     Math.max(25, Math.min(99, (1 - (colorDiffSum / 16) * 1.1) * 100)),
   );
 
-  // 2. Светотень и композиция (Пирсон)
   const targetLum = target.gridHSV.map((c) => c[2]);
   const corr = pearsonCorrelation(genFingerprint.gridLum, targetLum);
   const structScore = Math.round(
     Math.max(25, Math.min(99, Math.max(0, corr) * 100)),
   );
 
-  // 3. Фактура штрихов и контуры (Собель)
   let edgeDiffSum = 0;
   for (let i = 0; i < 16; i++) {
     edgeDiffSum += Math.abs(genFingerprint.gridEdges[i] - target.gridEdges[i]);
@@ -1375,12 +1389,10 @@ async function evaluateBattle(prompt) {
     Math.max(25, Math.min(99, (1 - (edgeDiffSum / 16) * 1.35) * 100)),
   );
 
-  // 4. Семантика по стемминг-синонимам
   const markerAnalysis = evaluateSemanticMarkers(prompt, target.markers);
   const foundCount = markerAnalysis.filter((m) => m.found).length;
   const markerScore = Math.round((foundCount / target.markers.length) * 100);
 
-  // Итоговый балл: 30% цвет + 30% композиция + 15% фактура + 25% семантика
   const finalScore = Math.min(
     98,
     Math.max(
@@ -1423,7 +1435,6 @@ function composeVerdict(res, targetTitle) {
   return `🎯 Полотно <b>«${targetTitle}»</b>: ${praise} (${high}%), ${advice} (${low}%). Угадано ключевых деталей: ${res.foundCount} из ${res.markerAnalysis.length}.`;
 }
 
-// ── Финиш раунда и отрисовка ──────────────────────────────
 async function finishBattleRound(finalPrompt) {
   compTargetImg.src = state.currentArt.imageUrl;
   compGenImg.src = state.generatedImageBase64;
@@ -1514,7 +1525,7 @@ btnAgain.addEventListener("click", () => {
   showScreen("start");
 });
 
-btnOpenLb.addEventListener("click", openLeaderboard);
+if (btnOpenLb) btnOpenLb.addEventListener("click", openLeaderboard);
 btnShowLb.addEventListener("click", openLeaderboard);
 btnLbBack.addEventListener("click", () => showScreen("start"));
 
