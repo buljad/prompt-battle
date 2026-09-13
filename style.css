@@ -464,3 +464,16 @@ h1 {
   .target-img-wrap, .comp-img { height: 350px; }
   .breakdown-grid { grid-template-columns: 1fr; }
 }
+
+/* Подсветка запрещенных слов в дисквалифицированном промпте */
+.censored-word {
+  background: rgba(233, 69, 96, 0.35);
+  color: #ff6b81;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  font-weight: 700;
+  text-decoration: line-through;
+  display: inline-block;
+  margin: 0 2px;
+}

@@ -1,6 +1,6 @@
 /* ==========================================================
    REVERSE PROMPT BATTLE // CLIENT ENGINE
-   Safe Anti-Spam Queueing & Calibrated Matching
+   Scunthorpe-Safe Filtering & Interactive Disqualification
    ========================================================== */
 
 const ROUND_TIME_SECONDS = 120;
@@ -616,93 +616,6 @@ const TARGET_ARTWORKS = [
       0.88, 0.88, 0.8,
     ],
   },
-  // {
-  //   id: "birth_of_venus",
-  //   title: "Рождение Венеры",
-  //   epoch: "Раннее Возрождение (1485)",
-  //   imageUrl:
-  //     "https://commons.wikimedia.org/wiki/Special:FilePath/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg?width=900",
-  //   stopWords: [
-  //     "венера",
-  //     "венеры",
-  //     "ботичелли",
-  //     "ботиччелли",
-  //     "venus",
-  //     "botticelli",
-  //     "birth of venus",
-  //   ],
-  //   markers: [
-  //     {
-  //       label: "Морская раковина",
-  //       stems: ["раковин", "гребешок", "ракушк", "створк", "shell", "seashell"],
-  //     },
-  //     {
-  //       label: "Длинные золотистые волосы",
-  //       stems: [
-  //         "волос",
-  //         "рыж",
-  //         "золот",
-  //         "локон",
-  //         "длинн",
-  //         "hair",
-  //         "blonde",
-  //         "red",
-  //       ],
-  //     },
-  //     {
-  //       label: "Летящие боги ветра",
-  //       stems: [
-  //         "ветер",
-  //         "зефир",
-  //         "крылат",
-  //         "летящ",
-  //         "дух",
-  //         "бог",
-  //         "wind",
-  //         "flying",
-  //       ],
-  //     },
-  //     {
-  //       label: "Парящие розы / лепестки",
-  //       stems: ["роз", "цвет", "лепестк", "пада", "парящ", "roses", "petals"],
-  //     },
-  //     {
-  //       label: "Морское побережье",
-  //       stems: [
-  //         "море",
-  //         "берег",
-  //         "пляж",
-  //         "волн",
-  //         "вод",
-  //         "sea",
-  //         "shore",
-  //         "ocean",
-  //       ],
-  //     },
-  //   ],
-  //   gridHSV: [
-  //     [180, 0.25, 0.68],
-  //     [185, 0.22, 0.7],
-  //     [182, 0.2, 0.72],
-  //     [120, 0.3, 0.55],
-  //     [190, 0.35, 0.58],
-  //     [35, 0.28, 0.75],
-  //     [36, 0.26, 0.74],
-  //     [115, 0.4, 0.45],
-  //     [195, 0.4, 0.52],
-  //     [42, 0.35, 0.65],
-  //     [40, 0.32, 0.64],
-  //     [110, 0.45, 0.4],
-  //     [192, 0.42, 0.48],
-  //     [44, 0.4, 0.58],
-  //     [42, 0.38, 0.56],
-  //     [105, 0.42, 0.38],
-  //   ],
-  //   gridEdges: [
-  //     0.35, 0.3, 0.3, 0.45, 0.65, 0.7, 0.7, 0.6, 0.6, 0.75, 0.75, 0.55, 0.45,
-  //     0.65, 0.65, 0.4,
-  //   ],
-  // },
   {
     id: "persistence_of_memory",
     title: "Постоянство памяти",
@@ -821,6 +734,7 @@ const state = {
   cooldownInterval: null,
   generatedImageBase64: null,
   cachedDb: [],
+  artworkDeck: [], // Колода несыгранных картин (механика Shuffle Bag)
 };
 
 const screens = {
@@ -1003,9 +917,32 @@ btnStart.addEventListener("click", async () => {
   startSingleBattleRound();
 });
 
+// Алгоритм колоды (Fisher-Yates) без повторений подряд
+function getNextArtwork() {
+  if (!state.artworkDeck || state.artworkDeck.length === 0) {
+    const deck = [...TARGET_ARTWORKS];
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
+    // Защита от выпадения той же картины на стыке двух колод
+    if (
+      state.currentArt &&
+      deck.length > 1 &&
+      deck[deck.length - 1].id === state.currentArt.id
+    ) {
+      [deck[deck.length - 1], deck[0]] = [deck[0], deck[deck.length - 1]];
+    }
+
+    state.artworkDeck = deck;
+  }
+
+  return state.artworkDeck.pop();
+}
+
 function startSingleBattleRound() {
-  const randIdx = Math.floor(Math.random() * TARGET_ARTWORKS.length);
-  state.currentArt = TARGET_ARTWORKS[randIdx];
+  state.currentArt = getNextArtwork();
 
   targetImg.src = state.currentArt.imageUrl;
   hudArtTitle.textContent = state.currentArt.title;
@@ -1014,7 +951,6 @@ function startSingleBattleRound() {
   promptInput.value = "";
   stopwordAlert.classList.add("hidden");
 
-  // Старт с 5-секундным изучением шедевра (защита API от спама)
   btnSubmitPrompt.disabled = true;
   let cooldownLeft = 5;
   btnSubmitPrompt.textContent = `Изучи образец (${cooldownLeft}с)`;
@@ -1057,17 +993,127 @@ function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function findForbiddenWords(text) {
+function findArtworkStopWords(text) {
   if (!state.currentArt) return [];
   const lower = text.toLowerCase();
-  return state.currentArt.stopWords.filter((phrase) => {
-    const esc = escapeRegExp(phrase.toLowerCase());
-    const regex = new RegExp(
-      `(^|[^a-zA-Zа-яА-ЯёЁ0-9])${esc}(?![a-zA-Zа-яА-ЯёЁ0-9])`,
-      "i",
-    );
-    return regex.test(lower);
+  const found = [];
+
+  state.currentArt.stopWords.forEach((phrase) => {
+    const esc = escapeRegExp(phrase.toLowerCase().trim());
+    const baseEsc = esc.replace(/[аеиоуыэюяйь]+$/i, "");
+    const pattern = baseEsc.length >= 3
+      ? `(^|[^a-zA-Zа-яА-ЯёЁ0-9])(${esc}|${baseEsc}[а-яёa-z]{1,3})(?![a-zA-Zа-яА-ЯёЁ0-9])`
+      : `(^|[^a-zA-Zа-яА-ЯёЁ0-9])${esc}(?![a-zA-Zа-яА-ЯёЁ0-9])`;
+    const regex = new RegExp(pattern, "i");
+    const m = lower.match(regex);
+    if (m) {
+      const matchedWord = m[0].replace(/^[^a-zA-Zа-яА-ЯёЁ0-9]+/, "").trim();
+      if (!found.includes(matchedWord)) found.push(matchedWord);
+    }
   });
+
+  return found;
+}
+
+// Нормализация без склеивания пробелов между словами
+function normalizeTyposAndLeet(rawText) {
+  let text = rawText.toLowerCase().trim();
+  text = text.replace(/([а-яёa-z0-9])[\.\-_*\/\\|]+(?=[а-яёa-z0-9])/gi, "$1");
+  text = text.replace(/\s+/g, " ");
+
+  const leetMap = {
+    a: "а", b: "в", e: "е", k: "к", m: "м",
+    h: "н", o: "о", p: "р", c: "с", t: "т",
+    y: "у", x: "х", 0: "о", 1: "и", 3: "з", 4: "ч",
+  };
+
+  text = text
+    .split("")
+    .map((ch) => leetMap[ch] || ch)
+    .join("");
+
+  return text.replace(/([а-яёa-z])\1{2,}/gi, "$1");
+}
+
+function findGlobalTabooWords(text) {
+  const norm = normalizeTyposAndLeet(text);
+  const flagged = [];
+
+  const maleRoots = "(мужчин|мужик|пар(ен|н)|пацан|мальчик|юнош|дед|старик|дяд|джентльмен|парней|мужиков|мужчинами|парнями)";
+  const kissRoots = "(целу|поцелу|засос|лобза|чмок|обжим|присосал|целова)";
+  const loveRoots = "(люб[яиеятл]|влюблен|романт|нежност|ласк|страст|обнима|объят)";
+  const gayRoots  = "(ге[йиея]|гомосек[а-я]*|лгбт|gay|homo|mlm)";
+  const eachOtherMask = "([дзж]?ру[гж][а-я]*\\s+[дзж]?ру[гж][а-я]*)";
+
+  const maleIntimacyPatterns = [
+    new RegExp(`${gayRoots}.*?(${kissRoots}|${loveRoots}|пляж|берег|постел|вместе|пара|парн|мужч)`, "i"),
+    new RegExp(`(${kissRoots}|${loveRoots}).*?${gayRoots}`, "i"),
+    new RegExp(`(дв[ауео]|пар[аеы]|обо[ихей]|вдвоем)\\s+([а-яё\\s]*\\s+)?${maleRoots}[а-яё]*.*?(${kissRoots}|${loveRoots})`, "i"),
+    new RegExp(`(${kissRoots}|${loveRoots})[а-яё]*.*?(дв[ауео]|пар[аеы]|обо[ихей]|вдвоем)\\s+([а-яё\\s]*\\s+)?${maleRoots}`, "i"),
+    new RegExp(`${maleRoots}[а-яё]*.*?${maleRoots}[а-яё]*.*?(${kissRoots}|${loveRoots})`, "i"),
+    new RegExp(`${maleRoots}[а-яё]*.*?(${kissRoots}|${loveRoots})[а-яё]*.*?${maleRoots}`, "i"),
+    new RegExp(`${maleRoots}[а-яё]*.*?(${kissRoots}|${loveRoots})[а-яё]*.*?${eachOtherMask}`, "i"),
+    new RegExp(`${eachOtherMask}.*?(${kissRoots}|${loveRoots})[а-яё]*.*?${maleRoots}`, "i"),
+  ];
+
+  for (const pattern of maleIntimacyPatterns) {
+    const m = text.match(pattern) || norm.match(pattern);
+    if (m) {
+      const matchStr = m[0].trim();
+      if (!flagged.includes(matchStr)) flagged.push(matchStr);
+      break;
+    }
+  }
+
+  const anatomyAndFetishPatterns = [
+    /(женск|больш|пышн|обнажен|открыт|красив|висяч|упруг|видет|виде|форм)[а-яё]*\s+груд[а-яё]*/gi,
+    /груд[а-яё]*\s+(женщин|девушк|больш|пышн|размер)/gi,
+    /вым[яе][а-яё]*/gi,
+    /(женщин|девушк|человек|самк)[а-яё]*[\s\-]+(коров|кобыл|свин|лошад|псин|собак|животн)[а-яё]*/gi,
+    /(коров|кобыл|свин|лошад)[а-яё]*[\s\-]+(женщин|девушк|телк)[а-яё]*/gi,
+    /без\s+(одежды|белья|штанов|трусов)/gi,
+    /половой\s+акт/gi,
+    /занима(ются|ться|лись)\s+сексом/gi,
+  ];
+
+  anatomyAndFetishPatterns.forEach((p) => {
+    const matches = text.match(p) || norm.match(p);
+    if (matches) {
+      matches.forEach((w) => {
+        const clean = w.trim();
+        if (!flagged.includes(clean)) flagged.push(clean);
+      });
+    }
+  });
+
+  const tokens = text.toLowerCase().split(/[^a-zа-яё0-9]+/i).filter((w) => w.length > 1);
+
+  tokens.forEach((word) => {
+    const safeEbRoots = /(греб|неб|хлеб|колеб|треб|сереб|хреб|стеб|лебед|дебат|ястреб|жереб|учеб|судеб|молеб|врачеб|плацеб)/i;
+    if (/еб/i.test(word) && !safeEbRoots.test(word)) {
+      if (/([а-яё]*[её]б(ать|ал|ала|али|ет|ут|учий|анн|аный|ло|лан|нутый|ля|у|ёшь|ете|ись)[а-яё]*|долбо[её]б[а-яё]*)/i.test(word)) {
+        if (!flagged.includes(word)) flagged.push(word);
+      }
+    }
+
+    if (/^(член|члена|членом|члены|пенис[а-яё]*|вагин[а-яё]*|соск[иао][а-яё]*|сосо[чк][а-яё]*|dick|penis|vagina)$/i.test(word)) {
+      if (!flagged.includes(word)) flagged.push(word);
+    }
+    if (/^(сиськ[а-яё]*|сисе[кч][а-яё]*|жопа|жопы|жопу|жопой|жопе|asshole)$/i.test(word)) {
+      if (!flagged.includes(word)) flagged.push(word);
+    }
+    if (/^(порно[а-яё]*|porno|минет[а-яё]*|куни[а-яё]*|трах[а-яё]*|дроч[а-яё]*|nude|naked|nudity|nsfw|топлесс?)$/i.test(word)) {
+      if (!flagged.includes(word)) flagged.push(word);
+    }
+    if (/^(хентай|hentai|лоликон|фетиш[а-яё]*)$/i.test(word)) {
+      if (!flagged.includes(word)) flagged.push(word);
+    }
+    if (/^(пизд[а-яё]*|ху[йяеёюи][а-яё]*|бл[яяа]д[а-яё]*)$/i.test(word)) {
+      if (!flagged.includes(word)) flagged.push(word);
+    }
+  });
+
+  return flagged;
 }
 
 function getPromptQualityIssue(text) {
@@ -1080,70 +1126,46 @@ function getPromptQualityIssue(text) {
   if (/[бвгджзйклмнпрстфхцчшщbcdfghjklmnpqrstvwxyz]{6,}/i.test(clean))
     return "Опечатка — исправь слова";
 
-  const pureColors = [
-    "красн",
-    "син",
-    "бел",
-    "черн",
-    "желт",
-    "зелен",
-    "темн",
-    "светл",
-    "голуб",
-    "оранжев",
-    "серый",
-    "сер",
-    "фиолетов",
-    "red",
-    "blue",
-    "white",
-    "black",
-    "yellow",
-    "green",
-    "dark",
-  ];
-  const allAreColors = words.every((w) => {
-    const lw = w.toLowerCase();
-    return pureColors.some((c) => lw.startsWith(c));
-  });
-
-  if (allAreColors) {
-    return "Указаны только цвета! Назови предмет (человек, скала, волна, море, одежда...)";
-  }
-
   return null;
 }
 
-function removeForbiddenWord(word) {
-  const esc = escapeRegExp(word);
-  const regex = new RegExp(
-    `(^|[^a-zA-Zа-яА-ЯёЁ0-9])${esc}(?![a-zA-Zа-яА-ЯёЁ0-9])`,
-    "gi",
-  );
-  promptInput.value = promptInput.value
-    .replace(regex, "$1")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+function removeWordFromPrompt(word) {
+  const esc = escapeRegExp(word.trim());
+  const regex = new RegExp(`(^|[^a-zA-Zа-яА-ЯёЁ0-9])${esc}(?![a-zA-Zа-яА-ЯёЁ0-9])`, "gi");
+
+  let nextVal = promptInput.value.replace(regex, "$1");
+  if (nextVal === promptInput.value) {
+    nextVal = promptInput.value.replace(new RegExp(esc, "gi"), "");
+  }
+
+  promptInput.value = nextVal.replace(/\s{2,}/g, " ").trim();
   handlePromptInput();
   promptInput.focus();
 }
-window.removeForbiddenWord = removeForbiddenWord;
+window.removeWordFromPrompt = removeWordFromPrompt;
 
 function handlePromptInput() {
-  if (state.cooldownInterval) return; // Кнопка под 5-секундным таймером
+  if (state.cooldownInterval) return;
 
   const val = promptInput.value;
-  const forbidden = findForbiddenWords(val);
+  const artStopWords = findArtworkStopWords(val);
+  const tabooWords = findGlobalTabooWords(val);
   const qualityIssue = getPromptQualityIssue(val);
 
-  if (forbidden.length > 0) {
-    const chipsHtml = forbidden
+  if (artStopWords.length > 0 || tabooWords.length > 0) {
+    const allBad = [...artStopWords, ...tabooWords];
+    const chipsHtml = allBad
       .map(
         (w) =>
-          `<button type="button" class="stopword-chip" onclick="removeForbiddenWord('${w}')">Удалить «${w}» ✕</button>`,
+          `<button type="button" class="stopword-chip" onclick="removeWordFromPrompt('${w.replace(/'/g, "\\'")}')">Удалить «${w}» ✕</button>`,
       )
       .join(" ");
-    stopwordAlert.innerHTML = `⚠️ <b>Запрещенные слова:</b><br><div class="chips-container">${chipsHtml}</div>`;
+
+    const warningText = tabooWords.length > 0
+      ? "⛔ <b>Обнаружен недопустимый контекст или запрещенная лексика:</b>"
+      : "⚠️ <b>Упоминание названия картины или автора запрещено:</b>";
+
+    stopwordAlert.innerHTML = `${warningText}<br><div class="chips-container">${chipsHtml}</div>`;
     stopwordAlert.classList.remove("hidden");
     stopwordAlert.className = "stopword-warning";
     btnSubmitPrompt.disabled = true;
@@ -1161,7 +1183,7 @@ promptInput.addEventListener("input", handlePromptInput);
 
 btnSubmitPrompt.addEventListener("click", () => {
   if (btnSubmitPrompt.disabled) return;
-  btnSubmitPrompt.disabled = true; // Мгновенный лок от повторных кликов
+  btnSubmitPrompt.disabled = true;
   if (state.cooldownInterval) clearInterval(state.cooldownInterval);
   if (state.timerHandle) clearInterval(state.timerHandle);
   triggerSingleGeneration();
@@ -1169,22 +1191,12 @@ btnSubmitPrompt.addEventListener("click", () => {
 
 async function triggerSingleGeneration() {
   if (state.cooldownInterval) clearInterval(state.cooldownInterval);
-  let prompt = promptInput.value.trim();
+  if (state.timerHandle) clearInterval(state.timerHandle);
 
-  if (state.currentArt) {
-    state.currentArt.stopWords.forEach((phrase) => {
-      const esc = escapeRegExp(phrase);
-      const regex = new RegExp(
-        `(^|[^a-zA-Zа-яА-ЯёЁ0-9])${esc}(?![a-zA-Zа-яА-ЯёЁ0-9])`,
-        "gi",
-      );
-      prompt = prompt.replace(regex, "$1");
-    });
-    prompt = prompt.replace(/\s{2,}/g, " ").trim();
+  let finalPrompt = promptInput.value.trim();
+  if (!finalPrompt || finalPrompt.length < 4) {
+    finalPrompt = "Historical fine art painting masterpiece";
   }
-
-  const fallback = "Historical fine art painting on full surface";
-  const finalPrompt = prompt.length >= 6 ? prompt : fallback;
 
   showScreen("loading");
 
@@ -1195,39 +1207,74 @@ async function triggerSingleGeneration() {
       body: JSON.stringify({ prompt: finalPrompt }),
     });
 
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
+    }
+
     const data = await res.json();
+    if (!data || !data.image) {
+      throw new Error("Не удалось получить изображение от модели");
+    }
+
     state.generatedImageBase64 = data.image;
 
-    finishBattleRound(finalPrompt);
+    if (data.violation) {
+      handleDisqualification(finalPrompt, data.flaggedWords || []);
+    } else {
+      finishBattleRound(finalPrompt);
+    }
   } catch (err) {
     console.error("Pipeline notice:", err);
+    stopwordAlert.innerHTML = `⚠️ <b>Сбой генерации:</b> ${err.message}. Попробуй отправить еще раз.`;
+    stopwordAlert.className = "stopword-warning";
+    stopwordAlert.classList.remove("hidden");
+    btnSubmitPrompt.disabled = false;
     showScreen("game");
   }
 }
 
-// ── Компьютерное зрение ───────
+async function handleDisqualification(rawPrompt, flaggedWords) {
+  compTargetImg.src = state.currentArt.imageUrl;
+  compGenImg.src = state.generatedImageBase64;
+  resPilotName.textContent = state.playerNick;
+
+  let highlighted = rawPrompt;
+  flaggedWords.forEach((w) => {
+    const esc = escapeRegExp(w);
+    highlighted = highlighted.replace(
+      new RegExp(`(${esc})`, "gi"),
+      '<mark class="censored-word">$1</mark>',
+    );
+  });
+  resPromptText.innerHTML = highlighted;
+
+  resScorePct.textContent = "0%";
+  resScorePct.style.color = "var(--accent)";
+  metricColorVal.textContent = "0%";
+  metricColorBar.style.width = "0%";
+  metricStructVal.textContent = "0%";
+  metricStructBar.style.width = "0%";
+  metricEdgeVal.textContent = "0%";
+  metricEdgeBar.style.width = "0%";
+
+  resVerdictText.innerHTML = `❌ <b>РАУНД АННУЛИРОВАН (0%)</b><br>В описании обнаружены недопустимые темы или запрещенная лексика стенда.`;
+  detectiveChips.innerHTML = `<span class="det-chip miss">⛔ Дисквалифицирован</span>`;
+
+  showScreen("result");
+}
+
 function rgbToHsv(r, g, b) {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b),
-    min = Math.min(r, g, b);
-  let h = 0,
-    s = 0,
-    v = max;
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, v = max;
   const d = max - min;
   s = max === 0 ? 0 : d / max;
   if (max !== min) {
     switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      case b:
-        h = (r - g) / d + 4;
-        break;
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
     }
     h *= 60;
   }
@@ -1238,11 +1285,9 @@ function extractVisionFingerprint(imgBase64) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const W = 128,
-        H = 128;
+      const W = 128, H = 128;
       const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
+      canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(img, 0, 0, W, H);
       const data = ctx.getImageData(0, 0, W, H).data;
@@ -1250,14 +1295,11 @@ function extractVisionFingerprint(imgBase64) {
       const gridHSV = [];
       const gridEdges = [];
       const gridLum = [];
-      const cellW = 32,
-        cellH = 32;
+      const cellW = 32, cellH = 32;
 
       for (let gy = 0; gy < 4; gy++) {
         for (let gx = 0; gx < 4; gx++) {
-          let rSum = 0,
-            gSum = 0,
-            bSum = 0;
+          let rSum = 0, gSum = 0, bSum = 0;
           let edgeEnergy = 0;
           const totalPixels = cellW * cellH;
 
@@ -1267,32 +1309,20 @@ function extractVisionFingerprint(imgBase64) {
               const r = data[idx];
               const g = data[idx + 1];
               const b = data[idx + 2];
-              rSum += r;
-              gSum += g;
-              bSum += b;
+              rSum += r; gSum += g; bSum += b;
 
               if (x > 0 && y > 0) {
                 const idxL = (y * W + (x - 1)) * 4;
                 const idxU = ((y - 1) * W + x) * 4;
                 const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                const lumL =
-                  0.299 * data[idxL] +
-                  0.587 * data[idxL + 1] +
-                  0.114 * data[idxL + 2];
-                const lumU =
-                  0.299 * data[idxU] +
-                  0.587 * data[idxL + 1] +
-                  0.114 * data[idxL + 2];
+                const lumL = 0.299 * data[idxL] + 0.587 * data[idxL + 1] + 0.114 * data[idxL + 2];
+                const lumU = 0.299 * data[idxU] + 0.587 * data[idxL + 1] + 0.114 * data[idxL + 2];
                 edgeEnergy += Math.abs(lum - lumL) + Math.abs(lum - lumU);
               }
             }
           }
 
-          const hsv = rgbToHsv(
-            rSum / totalPixels,
-            gSum / totalPixels,
-            bSum / totalPixels,
-          );
+          const hsv = rgbToHsv(rSum / totalPixels, gSum / totalPixels, bSum / totalPixels);
           gridHSV.push(hsv);
           gridLum.push(hsv[2]);
           gridEdges.push(Math.min(1.0, edgeEnergy / totalPixels / 40));
@@ -1309,9 +1339,7 @@ function pearsonCorrelation(x, y) {
   const n = x.length;
   const mx = x.reduce((a, b) => a + b, 0) / n;
   const my = y.reduce((a, b) => a + b, 0) / n;
-  let num = 0,
-    d1 = 0,
-    d2 = 0;
+  let num = 0, d1 = 0, d2 = 0;
   for (let i = 0; i < n; i++) {
     const dx = x[i] - mx;
     const dy = y[i] - my;
@@ -1324,35 +1352,21 @@ function pearsonCorrelation(x, y) {
 
 function evaluateSemanticMarkers(prompt, markers) {
   const lowerPrompt = prompt.toLowerCase();
-
   return markers.map((marker) => {
     const isMatched = marker.stems.some((stem) => {
       const regex = new RegExp(`(^|[^a-zA-Zа-яА-ЯёЁ])${stem}`, "i");
       return regex.test(lowerPrompt);
     });
-
-    return {
-      name: marker.label,
-      found: isMatched,
-    };
+    return { name: marker.label, found: isMatched };
   });
 }
 
 async function evaluateBattle(prompt) {
-  const genFingerprint = await extractVisionFingerprint(
-    state.generatedImageBase64,
-  );
+  const genFingerprint = await extractVisionFingerprint(state.generatedImageBase64);
   const target = state.currentArt;
 
   if (!genFingerprint) {
-    return {
-      finalScore: 50,
-      colorScore: 50,
-      structScore: 50,
-      edgeScore: 50,
-      markerAnalysis: [],
-      foundCount: 0,
-    };
+    return { finalScore: 50, colorScore: 50, structScore: 50, edgeScore: 50, markerAnalysis: [], foundCount: 0 };
   }
 
   let colorDiffSum = 0;
@@ -1365,29 +1379,20 @@ async function evaluateBattle(prompt) {
     const normH = hDiff / 180;
 
     const saturationConfidence = Math.max(0, Math.min(1, (s1 * s2) / 0.06));
-    const cellDist =
-      normH * saturationConfidence * 0.35 +
-      Math.abs(s1 - s2) * 0.3 +
-      Math.abs(v1 - v2) * 0.45;
+    const cellDist = normH * saturationConfidence * 0.35 + Math.abs(s1 - s2) * 0.3 + Math.abs(v1 - v2) * 0.45;
     colorDiffSum += cellDist;
   }
-  const colorScore = Math.round(
-    Math.max(25, Math.min(99, (1 - (colorDiffSum / 16) * 1.1) * 100)),
-  );
+  const colorScore = Math.round(Math.max(25, Math.min(99, (1 - (colorDiffSum / 16) * 1.1) * 100)));
 
   const targetLum = target.gridHSV.map((c) => c[2]);
   const corr = pearsonCorrelation(genFingerprint.gridLum, targetLum);
-  const structScore = Math.round(
-    Math.max(25, Math.min(99, Math.max(0, corr) * 100)),
-  );
+  const structScore = Math.round(Math.max(25, Math.min(99, Math.max(0, corr) * 100)));
 
   let edgeDiffSum = 0;
   for (let i = 0; i < 16; i++) {
     edgeDiffSum += Math.abs(genFingerprint.gridEdges[i] - target.gridEdges[i]);
   }
-  const edgeScore = Math.round(
-    Math.max(25, Math.min(99, (1 - (edgeDiffSum / 16) * 1.35) * 100)),
-  );
+  const edgeScore = Math.round(Math.max(25, Math.min(99, (1 - (edgeDiffSum / 16) * 1.35) * 100)));
 
   const markerAnalysis = evaluateSemanticMarkers(prompt, target.markers);
   const foundCount = markerAnalysis.filter((m) => m.found).length;
@@ -1395,25 +1400,10 @@ async function evaluateBattle(prompt) {
 
   const finalScore = Math.min(
     98,
-    Math.max(
-      20,
-      Math.round(
-        colorScore * 0.3 +
-          structScore * 0.3 +
-          edgeScore * 0.15 +
-          markerScore * 0.25,
-      ),
-    ),
+    Math.max(20, Math.round(colorScore * 0.3 + structScore * 0.3 + edgeScore * 0.15 + markerScore * 0.25))
   );
 
-  return {
-    finalScore,
-    colorScore,
-    structScore,
-    edgeScore,
-    markerAnalysis,
-    foundCount,
-  };
+  return { finalScore, colorScore, structScore, edgeScore, markerAnalysis, foundCount };
 }
 
 function composeVerdict(res, targetTitle) {
@@ -1421,16 +1411,12 @@ function composeVerdict(res, targetTitle) {
   const low = Math.min(res.colorScore, res.structScore, res.edgeScore);
 
   let praise = "Отличная передача цветов и общего колорита";
-  if (high === res.structScore)
-    praise = "Идеально выстроенная композиция и ракурс";
-  else if (high === res.edgeScore)
-    praise = "Точная передача фактуры и контуров";
+  if (high === res.structScore) praise = "Идеально выстроенная композиция и ракурс";
+  else if (high === res.edgeScore) praise = "Точная передача фактуры и контуров";
 
   let advice = "но можно точнее передать светотень";
-  if (low === res.colorScore)
-    advice = "но цвета слегка отличаются по температуре";
-  else if (low === res.edgeScore)
-    advice = "но деталям немного не хватило четкости";
+  if (low === res.colorScore) advice = "но цвета слегка отличаются по температуре";
+  else if (low === res.edgeScore) advice = "но деталям немного не хватило четкости";
 
   return `🎯 Полотно <b>«${targetTitle}»</b>: ${praise} (${high}%), ${advice} (${low}%). Угадано ключевых деталей: ${res.foundCount} из ${res.markerAnalysis.length}.`;
 }
@@ -1456,10 +1442,7 @@ async function finishBattleRound(finalPrompt) {
   resVerdictText.innerHTML = composeVerdict(analysis, state.currentArt.title);
 
   detectiveChips.innerHTML = analysis.markerAnalysis
-    .map(
-      (m) =>
-        `<span class="det-chip ${m.found ? "hit" : "miss"}">${m.found ? "🟢 " : "⚪ "}${m.name}</span>`,
-    )
+    .map((m) => `<span class="det-chip ${m.found ? "hit" : "miss"}">${m.found ? "🟢 " : "⚪ "}${m.name}</span>`)
     .join("");
 
   const list = await fetchLeaderboard();
@@ -1476,19 +1459,13 @@ async function finishBattleRound(finalPrompt) {
   showScreen("result");
 }
 
-function rankSymbol(i) {
-  return ["🥇", "🥈", "🥉"][i] ?? i + 1;
-}
+function rankSymbol(i) { return ["🥇", "🥈", "🥉"][i] ?? i + 1; }
 function esc(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 async function renderLeaderboard() {
-  lbBody.innerHTML =
-    '<tr><td colspan="5" style="color:var(--muted);padding:24px">Загрузка данных…</td></tr>';
+  lbBody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:24px">Загрузка данных…</td></tr>';
   lbEmpty.classList.add("hidden");
   const rows = await fetchLeaderboard();
 
@@ -1500,8 +1477,7 @@ async function renderLeaderboard() {
   lbEmpty.classList.add("hidden");
 
   lbBody.innerHTML = rows
-    .map(
-      (item, i) => `
+    .map((item, i) => `
     <tr class="${i < 3 ? "rank-" + (i + 1) : ""}">
       <td>${rankSymbol(i)}</td>
       <td><b>${esc(item.handle)}</b></td>
@@ -1509,9 +1485,7 @@ async function renderLeaderboard() {
       <td style="color:var(--muted);">${esc(item.artwork || "Картина")}</td>
       <td style="font-size:0.9rem;color:var(--muted)">${item.date}</td>
     </tr>
-  `,
-    )
-    .join("");
+  `).join("");
 }
 
 async function openLeaderboard() {
